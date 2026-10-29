@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>系統音頻串流｜高音質直傳</title>
+<title>音頻串流</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
@@ -314,25 +314,20 @@ h1 {
 <body>
 <div class="particles" id="particles"></div>
 <div class="container">
-  <h1>🎵 系統音頻串流</h1>
-  <p class="subtitle">把 A 電腦正在播放的音樂即時傳到 B 電腦 · Opus 510kbps 48kHz 真立體聲 · 關閉所有音訊處理</p>
+  <h1>🎵 音頻串流 🎵</h1>
+  
 
   <!-- 接收端界面 -->
   <div id="receiver-panel" class="card" style="display:none;">
-    <div class="role-intro">📡 你是 <b>接收端（B）</b>：把下面的連結或 QR Code 發給發送端（A），對方打開後音訊就會自動推送到這裡。</div>
+    
     <div class="card-title">📡 接收端</div>
     <div id="receiver-status" class="status-badge status-waiting">等待發送端連接...</div>
 
     <div class="hint hifi">
-      <b>🎧 高音質直傳模式：</b>已關閉降噪、回音消除、自動增益與 DTX 語音偵測，Opus 510kbps CBR 固定碼率，保留完整立體聲與 48kHz 採樣。
+      <b>🎧 高音質直傳，保留完整立體聲與 48kHz 採樣 🎧
     </div>
 
     <div class="eq-container" id="receiver-eq"></div>
-
-    <div class="qr-box">
-      <div id="qrcode"></div>
-      <p style="margin-top:12px; color:rgba(255,255,255,0.6); font-size:0.9rem;">A 電腦掃碼 / 打開連結即可開始推流</p>
-    </div>
 
     <div class="invite-link">
       <input type="text" id="invite-url" readonly>
