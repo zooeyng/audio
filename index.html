@@ -25,18 +25,18 @@ button:disabled{background:#444;cursor:not-allowed}
 <div class="status" id="status">等待操作</div>
 
 <div class="card">
-  <h3>1. 發送端（A電腦：播放音樂這台）</h3>
+  <h3>📤 發送端（A：播放音樂）</h3>
   <p class="tip">⚠️ 彈窗選【整個畫面】，記得勾選【分享系統音頻】！</p>
   <button id="btnSender">開始傳送系統音頻</button>
-  <textarea id="localSDP" readonly placeholder="你的SDP報文會在這裡，複製給B"></textarea>
+  <textarea id="localSDP" readonly placeholder="你的報文（Offer / Answer）會出現在這裡，複製給對方"></textarea>
   <button id="copyLocal">複製報文</button>
 </div>
 
 <div class="card">
-  <h3>2. 接收端（B電腦：收聽音樂）</h3>
-  <p class="info">把A給你的報文貼上，點擊接收連線，之後把產生的報文回傳A</p>
-  <textarea id="remoteSDP" placeholder="貼上對方的SDP報文"></textarea>
-  <button id="btnConnect">接收連線</button>
+  <h3>🔗 貼上對方傳回來的報文（A、B兩邊都要用這一格！）</h3>
+  <p class="info">A貼B回傳的Answer；B貼A給的Offer，貼好按下按鈕</p>
+  <textarea id="remoteSDP" placeholder="貼上對方給你的SDP報文"></textarea>
+  <button id="btnApply">套用這個報文</button>
 </div>
 
 <div class="card">
@@ -50,7 +50,7 @@ const statusEl = document.getElementById('status');
 const localSDP = document.getElementById('localSDP');
 const remoteSDP = document.getElementById('remoteSDP');
 const btnSender = document.getElementById('btnSender');
-const btnConnect = document.getElementById('btnConnect');
+const btnApply = document.getElementById('btnApply');
 const copyLocal = document.getElementById('copyLocal');
 const audioPlayer = document.getElementById('audioPlayer');
 
@@ -68,16 +68,14 @@ function setStatus(txt, type=''){
   statusEl.className = 'status '+type;
 }
 
-// 發送端：抓取系統音頻（螢幕分享+系統音頻）
+// A 發送端：抓取系統音頻，產生 Offer
 btnSender.onclick = async ()=>{
   try{
     setStatus('正在請求系統音頻分享，請在彈窗勾【分享系統音頻】...','wait');
-    // getDisplayMedia 必須帶video:true，即使我們不要視訊
     systemStream = await navigator.mediaDevices.getDisplayMedia({
       video:true,
       audio:true
     });
-    // 關閉視訊軌，只保留音頻
     systemStream.getVideoTracks().forEach(track=>track.enabled=false);
 
     pc = new RTCPeerConnection(config);
@@ -89,7 +87,7 @@ btnSender.onclick = async ()=>{
     };
     pc.onicecandidate = (e)=>{
       if(!e.candidate) return;
-      localSDP.value = JSON.stringify({sdp:pc.localDescription, ice:e.candidate});
+      localSDP.value = JSON.stringify({sdp:pc.localDescription});
     };
     pc.onicegatheringstatechange = ()=>{
       if(pc.iceGatheringState === 'complete'){
@@ -99,33 +97,40 @@ btnSender.onclick = async ()=>{
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    setStatus('✅ 已產生Offer，複製文字給B電腦','wait');
+    setStatus('✅ 已產生Offer，複製給B電腦','wait');
   }catch(err){
     setStatus('❌ 錯誤：'+err.message,'err');
     console.error(err);
   }
 };
 
-// 接收端
-btnConnect.onclick = async ()=>{
+// 共用按鈕：不管A或B，貼好報文就按這裡
+btnApply.onclick = async ()=>{
   try{
     setStatus('處理對方報文中...','wait');
     const data = JSON.parse(remoteSDP.value.trim());
-    pc = new RTCPeerConnection(config);
-
-    pc.ontrack = (e)=>{
-      audioPlayer.srcObject = e.streams[0];
-      setStatus('✅ 音樂串流已到達！','ready');
-    };
-    pc.onicecandidate = (e)=>{
-      if(!e.candidate) return;
-      localSDP.value = JSON.stringify({sdp:pc.localDescription, ice:e.candidate});
-    };
+    if(!pc){
+      pc = new RTCPeerConnection(config);
+      pc.ontrack = (e)=>{
+        audioPlayer.srcObject = e.streams[0];
+        setStatus('✅ 音樂串流已連線！','ready');
+      };
+      pc.onicecandidate = (e)=>{
+        if(!e.candidate) return;
+        localSDP.value = JSON.stringify({sdp:pc.localDescription});
+      };
+    }
 
     await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    setStatus('✅ 已產生Answer，複製回傳給A完成配對','wait');
+
+    // 如果現在還沒有 localDescription，代表是B，要產生Answer回傳
+    if(!pc.localDescription){
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      setStatus('✅ 已產生Answer，複製回傳給A','wait');
+    }else{
+      setStatus('✅ 已接收Answer，配對完成！','ready');
+    }
   }catch(err){
     setStatus('❌ 連線失敗：'+err.message,'err');
     console.error(err);
