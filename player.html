@@ -1,0 +1,39 @@
+
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>LIVE视频播放器</title>
+<link href="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/tcplayer.min.css" rel="stylesheet"/>
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/TXLivePlayer-1.2.3.min.js"></script>
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/hls.min.1.1.6.js"></script>
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/flv.min.1.6.3.js"></script>
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/dash.all.min.4.5.2.js"></script>
+<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/tcplayer.v4.7.2.min.js"></script>
+</head>
+<body bgcolor="black" style="margin:0">
+
+<input type="text" name="aa" id="link" style="height:50px; width:1000px;font-size:30px;">
+
+<button type="button" style=" height: 50px; width: 120px; font-size:40px;" onclick="go()">GO</button>
+
+<video id="myVideo" style="width:100%;height:100%" preload="auto" playsinline webkit-playsinline></video>
+
+<script>
+var player = TCPlayer('myVideo', {});
+player.src("https://locallive.tdm.com.mo/ch1/ch1.live/playlist.m3u8");
+
+ 	player.load();
+	player.play();
+
+function go() {
+	
+var player = TCPlayer('myVideo', {});
+player.src("https://live3.tdm.com.mo/ch6/hd_ch6.live/playlist.m3u8");
+ 	player.load();
+	player.play();
+}
+
+</script>
+
+</body>
+</html>
