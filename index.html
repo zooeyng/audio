@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Audio Relay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Inter','Noto Sans SC','SF Pro Display','SF Pro Text','PingFang HK','PingFang SC','Helvetica Neue',-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#000;
+  color:#f5f5f7;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  letter-spacing:-0.01em;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%,rgba(10,132,255,0.12),transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%,rgba(191,90,242,0.08),transparent 60%);
+  z-index:0;
+}
+.wrap{
+  position:relative;z-index:1;
+  min-height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 24px 64px;
+}
+.topbar{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:18px 24px;
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  background:rgba(0,0,0,0.55);
+  z-index:10;
+  border-bottom:0.5px solid rgba(255,255,255,0.08);
+}
+.brand{
+  font-size:15px;font-weight:600;
+  letter-spacing:-0.02em;
+  display:flex;align-items:center;gap:8px;
+}
+.brand-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#0A84FF;
+  box-shadow:0 0 12px rgba(10,132,255,0.7);
+}
+.container{
+  width:100%;max-width:440px;
+  margin-top:24px;
+}
+.card{
+  background:rgba(28,28,30,0.72);
+  border:0.5px solid rgba(255,255,255,0.08);
+  border-radius:24px;
+  padding:32px;
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+}
+h1{
+  font-size:28px;font-weight:700;
+  letter-spacing:-0.03em;
+  margin-bottom:6px;
+}
+.subtitle{
+  font-size:14px;color:#86868b;
+  margin-bottom:28px;font-weight:400;
+}
+/* status pill */
+.status-row{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:24px;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 11px;border-radius:980px;
+  font-size:12px;font-weight:500;
+  background:rgba(255,255,255,0.06);
+  color:#86868b;
+  border:0.5px solid rgba(255,255,255,0.08);
+}
+.pill-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#86868b;flex-shrink:0;
+}
+.pill.waiting .pill-dot{background:#86868b;animation:pulse-gray 2s ease-in-out infinite}
+.pill.connecting .pill-dot{background:#FF9F0A;animation:pulse 1.2s ease-in-out infinite;box-shadow:0 0 8px rgba(255,159,10,0.6)}
+.pill.connecting{color:#FF9F0A;border-color:rgba(255,159,10,0.25);background:rgba(255,159,10,0.08)}
+.pill.connected .pill-dot{background:#30D158;box-shadow:0 0 8px rgba(48,209,88,0.6)}
+.pill.connected{color:#30D158;border-color:rgba(48,209,88,0.25);background:rgba(48,209,88,0.08)}
+.pill.error .pill-dot{background:#FF453A;box-shadow:0 0 8px rgba(255,69,58,0.5)}
+.pill.error{color:#FF453A;border-color:rgba(255,69,58,0.25);background:rgba(255,69,58,0.08)}
+@keyframes pulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.4;transform:scale(0.85)}
+}
+@keyframes pulse-gray{
+  0%,100%{opacity:1}
+  50%{opacity:0.4}
+}
+/* spectrum */
+.spectrum-wrap{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  height:120px;
+  margin-bottom:28px;
+  padding:16px;
+  border-radius:16px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.03) 0%,rgba(255,255,255,0) 100%);
+  border:0.5px solid rgba(255,255,255,0.05);
+  gap:3px;
+}
+.spectrum-wrap .bar{
+  flex:1;
+  min-width:3px;
+  background:linear-gradient(180deg,#0A84FF 0%,#5E5CE6 60%,#BF5AF2 100%);
+  border-radius:2px;
+  height:6px;
+  transition:height 40ms ease-out;
+  opacity:0.7;
+}
+.spectrum-wrap.idle .bar{
+  animation:idleWave 3s ease-in-out infinite;
+  background:linear-gradient(180deg,rgba(255,255,255,0.15) 0%,rgba(255,255,255,0.05) 100%);
+  opacity:1;
+}
+@keyframes idleWave{
+  0%,100%{height:6px}
+  50%{height:18px}
+}
+/* link row */
+.link-section{margin-bottom:20px}
+.label{
+  font-size:12px;color:#86868b;
+  font-weight:500;text-transform:uppercase;
+  letter-spacing:0.08em;
+  margin-bottom:8px;
+}
+.link-row{
+  display:flex;align-items:stretch;gap:8px;
+  background:rgba(255,255,255,0.04);
+  border:0.5px solid rgba(255,255,255,0.08);
+  border-radius:12px;
+  padding:4px;
+  transition:border-color .2s,background .2s;
+}
+.link-row:focus-within{border-color:rgba(10,132,255,0.4);background:rgba(10,132,255,0.04)}
+.link-input{
+  flex:1;min-width:0;
+  background:transparent;border:0;outline:0;
+  color:#f5f5f7;font-size:13px;
+  padding:0 12px;
+  font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  letter-spacing:0;
+  text-overflow:ellipsis;
+}
+.link-input::selection{background:rgba(10,132,255,0.3)}
+/* buttons */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border:0;border-radius:980px;
+  padding:10px 18px;
+  font-size:14px;font-weight:600;
+  font-family:inherit;
+  cursor:pointer;
+  transition:transform .12s ease,background .2s ease,opacity .2s;
+  white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:scale(0.97)}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-primary{
+  background:#0A84FF;color:#fff;
+  width:100%;padding:14px 20px;font-size:15px;
+}
+.btn-primary:hover:not(:disabled){background:#0071e3}
+.btn-secondary{
+  background:rgba(255,255,255,0.08);color:#f5f5f7;
+  backdrop-filter:blur(12px);
+}
+.btn-secondary:hover:not(:disabled){background:rgba(255,255,255,0.12)}
+.btn-ghost{
+  background:transparent;color:#0A84FF;
+  padding:10px 12px;
+}
+.btn-ghost:hover:not(:disabled){background:rgba(10,132,255,0.1)}
+.btn-icon{
+  width:40px;flex-shrink:0;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.06);color:#f5f5f7;
+  border-radius:9px;padding:0;
+  transition:background .2s;
+}
+.btn-icon:hover:not(:disabled){background:rgba(255,255,255,0.12)}
+.btn-icon.copied{background:rgba(48,209,88,0.18);color:#30D158}
+.btn.danger{background:#FF453A;color:#fff}
+.btn.danger:hover:not(:disabled){background:#ff2d20}
+.actions{margin-top:4px;display:flex;flex-direction:column;gap:10px}
+.action-row{display:flex;gap:10px}
+.action-row .btn{flex:1}
+/* hint */
+.hint{
+  display:flex;gap:10px;align-items:flex-start;
+  margin-top:20px;
+  padding:12px 14px;
+  border-radius:12px;
+  background:rgba(10,132,255,0.06);
+  border:0.5px solid rgba(10,132,255,0.15);
+  font-size:12.5px;line-height:1.5;color:#a1cfff;
+}
+.hint.warn{
+  background:rgba(255,159,10,0.06);
+  border-color:rgba(255,159,10,0.18);
+  color:#ffcc80;
+}
+.hint-icon{flex-shrink:0;margin-top:1px}
+/* toast */
+.toast{
+  position:fixed;bottom:40px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:rgba(28,28,30,0.9);
+  backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border:0.5px solid rgba(255,255,255,0.12);
+  color:#f5f5f7;
+  padding:10px 18px;border-radius:980px;
+  font-size:13px;font-weight:500;
+  opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;
+  z-index:100;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* small helpers */
+.hide{display:none!important}
+.mono{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.hidden{display:none}
+/* responsive */
+@media (max-width:480px){
+  .wrap{padding:24px 16px 48px}
+  .card{padding:24px 20px;border-radius:20px}
+  h1{font-size:24px}
+  .spectrum-wrap{height:100px}
+}
+/* focus visible for a11y */
+button:focus-visible,a:focus-visible{outline:2px solid #0A84FF;outline-offset:2px;border-radius:980px}
+.link-input:focus-visible{outline:none}
+.link-row:focus-within{box-shadow:0 0 0 2px rgba(10,132,255,0.3);border-color:transparent}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="brand-dot"></span>Audio Relay</div>
+</div>
+
+<div class="wrap">
+  <div class="container">
+    <div class="card" id="panel">
+
+      <!-- 接收端（B）：無 ?id= -->
+      <div id="receiverView">
+        <h1>等待連線</h1>
+        <p class="subtitle">在要發送音頻的電腦打開下方連結</p>
+
+        <div class="status-row">
+          <span class="pill waiting" id="rStatus"><span class="pill-dot"></span><span id="rStatusText">等待連入</span></span>
+        </div>
+
+        <div class="spectrum-wrap idle" id="rSpectrum"></div>
+
+        <div class="link-section">
+          <div class="label">邀請連結</div>
+          <div class="link-row">
+            <input class="link-input" id="inviteUrl" readonly spellcheck="false">
+            <button class="btn btn-icon" id="copyBtn" title="複製連結">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary hide" id="playBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            播放音頻
+          </button>
+        </div>
+
+        <div class="hint hide" id="rHint"></div>
+      </div>
+
+      <!-- 發送端（A）：?id=xxx -->
+      <div id="senderView" class="hide">
+        <h1>分享系統音頻</h1>
+        <p class="subtitle" id="sSub">點擊按鈕選擇要分享的畫面</p>
+
+        <div class="status-row">
+          <span class="pill waiting" id="sStatus"><span class="pill-dot"></span><span id="sStatusText">未開始</span></span>
+        </div>
+
+        <div class="spectrum-wrap idle" id="sSpectrum"></div>
+
+        <div class="actions">
+          <button class="btn btn-primary" id="shareBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="23 7 16 12 23 17 23 7"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            開始分享系統音頻
+          </button>
+          <button class="btn btn-secondary hide" id="stopBtn">停止傳送</button>
+        </div>
+
+        <div class="hint" id="sHint">
+          <svg class="hint-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <span>在彈窗中選擇「整個畫面」或要分享的分頁，<b>務必勾選左下角「分享系統音頻」</b>。</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+'use strict';
+
+// ---------- 工具 ----------
+const $ = id => document.getElementById(id);
+const rand = n => Math.random().toString(36).slice(2, 2 + n);
+
+function showToast(msg, ms = 1800) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function setPill(el, cls, text) {
+  el.className = 'pill ' + cls;
+  el.querySelector('.pill-dot'); // ensure dot exists
+  const txt = el.querySelector('span:last-child') || el;
+  if (text) txt.textContent = text;
+}
+
+// ---------- 頻譜 ----------
+const BAR_COUNT = 32;
+function buildBars(container) {
+  container.innerHTML = '';
+  for (let i = 0; i < BAR_COUNT; i++) {
+    const b = document.createElement('div');
+    b.className = 'bar';
+    b.style.animationDelay = (i * 60) + 'ms';
+    container.appendChild(b);
+  }
+  return container.querySelectorAll('.bar');
+}
+let audioCtx, analyser, freqData, rafId;
+function startSpectrum(stream, barEls, maxH = 100) {
+  stopSpectrum(barEls);
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = audioCtx.createMediaStreamSource(stream);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 128; // 64 bins -> pick 32
+  analyser.smoothingTimeConstant = 0.72;
+  src.connect(analyser);
+  freqData = new Uint8Array(analyser.frequencyBinCount);
+  barEls.parentElement.classList.remove('idle');
+  const tick = () => {
+    analyser.getByteFrequencyData(freqData);
+    // 揀前 32 個 bins，做一點非線性讓低中頻看起來更好
+    for (let i = 0; i < BAR_COUNT; i++) {
+      const v = freqData[i] || 0;
+      const h = Math.max(4, Math.pow(v / 255, 1.15) * maxH);
+      barEls[i].style.height = h + 'px';
+      barEls[i].style.opacity = 0.5 + (v / 255) * 0.5;
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+  tick();
+}
+function stopSpectrum(barEls) {
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = null;
+  if (audioCtx) { try { audioCtx.close(); } catch(e){} audioCtx = null; }
+  analyser = null;
+  if (barEls) {
+    barEls.forEach(b => { b.style.height = ''; b.style.opacity = ''; });
+    barEls.parentElement.classList.add('idle');
+  }
+}
+
+// ---------- 高音質 SDP 改寫 ----------
+function enhanceSDP(sdp) {
+  let lines = sdp.split('\r\n');
+  // 找 opus payload type
+  const audioMLine = lines.findIndex(l => l.startsWith('m=audio '));
+  let opusPT = null;
+  if (audioMLine >= 0) {
+    const parts = lines[audioMLine].split(' ');
+    for (let i = 3; i < parts.length; i++) {
+      const pt = parts[i];
+      const rtpmap = lines.find(l => l.startsWith('a=rtpmap:' + pt + ' ') && l.toLowerCase().includes('opus/48000/2'));
+      if (rtpmap) { opusPT = pt; break; }
+    }
+    // 把 opus 移到 codec 首位
+    if (opusPT) {
+      const others = parts.slice(3).filter(p => p !== opusPT);
+      lines[audioMLine] = parts.slice(0,3).concat([opusPT], others).join(' ');
+    }
+  }
+  // fmtp 最高音質
+  const F = `a=fmtp:${opusPT} minptime=2;useinbandfec=0;usedtx=0;stereo=1;sprop-stereo=1;cbr=1;maxaveragebitrate=510000;maxplaybackrate=48000;sprop-maxcapturerate=48000;maxcodedaudiobandwidth=fullband;complexity=10`;
+  let out = lines.map(l => {
+    if (opusPT && l.startsWith('a=fmtp:' + opusPT + ' ')) return F;
+    return l;
+  }).join('\r\n');
+  if (opusPT && !out.includes('a=fmtp:' + opusPT)) {
+    // 插到 m=audio 之後
+    const idx = out.split('\r\n').findIndex(l => l.startsWith('m=audio '));
+    const arr = out.split('\r\n');
+    arr.splice(idx + 1, 0, F);
+    out = arr.join('\r\n');
+  }
+  // b=AS 600
+  if (!out.match(/b=AS:/)) {
+    out += '\r\nb=AS:600\r\n';
+  } else {
+    out = out.replace(/b=AS:\d+/, 'b=AS:600');
+  }
+  return out;
+}
+
+// ---------- 通用 ICE 伺服器 ----------
+const ICE = [
+  { urls: [
+    'stun:stun.qq.com:3478',
+    'stun:stun.miwifi.com:3478',
+    'stun:stun.163yun.com:3478',
+    'stun:stun.voipstunt.com:3478',
+    'stun:stun.l.google.com:19302',
+  ]},
+  { urls: 'turn:openrelay.metered.ca:80', username:'openrelayproject', credential:'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username:'openrelayproject', credential:'openrelayproject' },
+];
+
+const PEER_HOSTS = [
+  { host: '0.peerjs.com', port: 443, path: '/', secure: true },
+  { host: 'peerjs-server.herokuapp.com', port: 443, path: '/', secure: true },
+];
+
+// ---------- 路由判定 ----------
+const sp = new URLSearchParams(location.search);
+const targetPeerId = sp.get('id');
+const isSender = !!targetPeerId;
+
+// ---------- 接收端 ----------
+if (!isSender) {
+  buildBars($('rSpectrum'));
+  initReceiver();
+} else {
+  $('receiverView').classList.add('hide');
+  $('senderView').classList.remove('hide');
+  buildBars($('sSpectrum'));
+  initSender();
+}
+
+function makePeer(id) {
+  // 自動故障轉移
+  return new Promise((resolve, reject) => {
+    let i = 0;
+    function tryOne() {
+      if (i >= PEER_HOSTS.length) return reject(new Error('信令伺服器全部連不上'));
+      const cfg = PEER_HOSTS[i++];
+      const peer = new Peer(id, {
+        ...cfg,
+        debug: 0,
+        config: { iceServers: ICE, iceTransportPolicy: 'all' },
+      });
+      const to = setTimeout(() => { try { peer.destroy(); } catch(e){} tryOne(); }, 5000);
+      peer.on('open', () => { clearTimeout(to); resolve(peer); });
+      peer.on('error', err => {
+        clearTimeout(to);
+        if (err.type === 'unavailable-id' || err.type === 'server-error' || err.type === 'network' || err.type === 'peer-unavailable') {
+          try { peer.destroy(); } catch(e){}
+          if (err.type === 'peer-unavailable') return reject(err);
+          tryOne();
+        } else {
+          reject(err);
+        }
+      });
+    }
+    tryOne();
+  });
+}
+
+// ---------- 接收端邏輯 ----------
+async function initReceiver() {
+  const peerId = 'recv-' + rand(4);
+  const url = `${location.origin}${location.pathname}?id=${peerId}`;
+  $('inviteUrl').value = url;
+
+  let peer, conn, audioEl, audioStream, rBars = $('rSpectrum').querySelectorAll('.bar');
+
+  try {
+    setPill($('rStatus'), 'connecting', '連接信令伺服器…');
+    peer = await makePeer(peerId);
+    setPill($('rStatus'), 'waiting', '等待發送端連入');
+  } catch (e) {
+    setPill($('rStatus'), 'error', '連接失敗');
+    showHint('rHint', 'warn', '無法連接信令伺服器，請檢查網路後重新整理頁面。');
+    return;
+  }
+
+  $('copyBtn').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      $('copyBtn').classList.add('copied');
+      const svg = $('copyBtn').innerHTML;
+      $('copyBtn').innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      showToast('連結已複製');
+      setTimeout(() => {
+        $('copyBtn').classList.remove('copied');
+        $('copyBtn').innerHTML = svg;
+      }, 1600);
+    } catch(e){
+      $('inviteUrl').select();
+      document.execCommand('copy');
+      showToast('連結已複製');
+    }
+  });
+
+  // 自動試圖播放（有些瀏覽器要求手勢）
+  function tryPlay() {
+    if (audioEl && audioEl.paused) {
+      audioEl.play().then(() => {
+        $('playBtn').classList.add('hide');
+      }).catch(() => {
+        $('playBtn').classList.remove('hide');
+      });
+    }
+  }
+
+  peer.on('call', async call => {
+    setPill($('rStatus'), 'connecting', '連接中…');
+    call.answer(); // 接收端不提供音頻流
+    call.on('stream', stream => {
+      audioStream = stream;
+      if (!audioEl) {
+        audioEl = new Audio();
+        audioEl.autoplay = true;
+        audioEl.setAttribute('playsinline','');
+      }
+      audioEl.srcObject = stream;
+      tryPlay();
+      startSpectrum(stream, rBars, 92);
+      setPill($('rStatus'), 'connected', '已連接，正在播放');
+      showHint('rHint', '', '已開始接收音頻。若沒聲音，請點「播放音頻」按鈕。');
+      $('playBtn').classList.remove('hide');
+      // 第一次嘗試播放，若被擋就留按鈕
+      setTimeout(tryPlay, 100);
+    });
+    call.on('error', err => {
+      setPill($('rStatus'), 'error', '連線錯誤');
+      showHint('rHint', 'warn', '連線出錯：' + (err && err.message ? err.message : String(err)));
+    });
+    call.on('close', () => {
+      setPill($('rStatus'), 'waiting', '連線已結束');
+      stopSpectrum(rBars);
+      $('playBtn').classList.add('hide');
+      showHint('rHint', 'warn', '連線已關閉，重新整理以產生新連結。');
+      if (audioEl) { try { audioEl.pause(); audioEl.srcObject = null; } catch(e){} }
+    });
+    peer.callObj = call;
+  });
+
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') {
+      setPill($('rStatus'), 'error', '找不到對方');
+    } else {
+      setPill($('rStatus'), 'error', '連接中斷');
+    }
+  });
+
+  $('playBtn').addEventListener('click', () => {
+    if (audioEl) audioEl.play().then(() => $('playBtn').classList.add('hide')).catch(()=>{});
+  });
+
+  $('inviteUrl').addEventListener('click', () => $('inviteUrl').select());
+}
+
+function showHint(which, kind, html) {
+  const el = $(which);
+  if (!html) { el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  if (kind === 'warn') el.classList.add('warn'); else el.classList.remove('warn');
+  el.querySelector('span:last-child').innerHTML = html;
+}
+
+// ---------- 發送端邏輯 ----------
+async function initSender() {
+  let peer, localStream, call;
+  const sBars = $('sSpectrum').querySelectorAll('.bar');
+  const shareBtn = $('shareBtn');
+  const stopBtn = $('stopBtn');
+  const hint = $('sHint');
+
+  setPill($('sStatus'), 'connecting', '連接信令伺服器…');
+  try {
+    peer = await makePeer('send-' + rand(6));
+    setPill($('sStatus'), 'waiting', '準備就緒');
+  } catch (e) {
+    setPill($('sStatus'), 'error', '連接失敗');
+    showHint('sHint', 'warn', '無法連接信令伺服器，請檢查網路後重試。');
+    shareBtn.disabled = true;
+    return;
+  }
+
+  async function setHiFiParams(sender) {
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings) params.encodings = [{}];
+      for (const enc of params.encodings) {
+        enc.maxBitrate = 510000;
+        enc.networkPriority = 'high';
+        enc.priority = 'high';
+      }
+      await sender.setParameters(params);
+      // 強制立體聲
+      try {
+        const p2 = sender.getParameters();
+        // Chrome 用 stereo 字首
+        for (const enc of p2.encodings) {
+          enc.stereo = true;
+          enc.maxBitrate = 510000;
+        }
+        await sender.setParameters(p2);
+      } catch(e){}
+    } catch(e){}
+  }
+
+  async function startShare() {
+    if (localStream) return;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 5 } },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          channelCount: 2,
+          sampleRate: 48000,
+        }
+      });
+    } catch(e) {
+      showHint('sHint', 'warn', '已取消分享或沒有權限。');
+      return;
+    }
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks.length) {
+      stream.getTracks().forEach(t => t.stop());
+      showHint('sHint', 'warn', '未取得系統音頻：請在分享時<b>勾選左下角「分享系統音頻」</b>，並選擇整個畫面或瀏覽器分頁。');
+      return;
+    }
+    // 關閉視頻（只傳音頻）
+    stream.getVideoTracks().forEach(t => { t.enabled = false; t.stop(); });
+    // 雙重保證關音訊處理
+    const at = audioTracks[0];
+    try {
+      await at.applyConstraints({ echoCancellation:false, noiseSuppression:false, autoGainControl:false, channelCount:2 });
+    } catch(e){}
+
+    localStream = stream;
+    startSpectrum(new MediaStream([at]), sBars, 92);
+
+    shareBtn.classList.add('hide');
+    stopBtn.classList.remove('hide');
+    setPill($('sStatus'), 'connecting', '正在連接接收端…');
+    showHint('sHint', '', '正在傳送音頻到另一端，點「停止傳送」可結束。');
+
+    // 建立通話
+    call = peer.call(targetPeerId, new MediaStream([at]), {
+      sdpTransform: enhanceSDP,
+    });
+    // offer/answer 雙向都改 SDP（call 本身只有 sdpTransform 用於本機 offer；
+    // answer 到來時 peerjs 會再給一次機會？事實上 peerjs 會對 answer 也跑 sdpTransform）
+    // 為穩健起見在 peerConnection 上再包一層
+    setTimeout(() => {
+      const pc = call && call.peerConnection;
+      if (!pc) return;
+      // 設定 sender 參數
+      pc.getSenders().forEach(s => {
+        if (s.track && s.track.kind === 'audio') setHiFiParams(s);
+      });
+      // ICE connected 再設一次
+      pc.addEventListener('connectionstatechange', () => {
+        if (pc.connectionState === 'connected') {
+          setPill($('sStatus'), 'connected', '已連接，正在傳送');
+          pc.getSenders().forEach(s => {
+            if (s.track && s.track.kind === 'audio') setHiFiParams(s);
+          });
+        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          setPill($('sStatus'), 'error', '連線中斷');
+        }
+      });
+      // ICE 重啟時再設參數
+      pc.addEventListener('iceconnectionstatechange', () => {
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          pc.getSenders().forEach(s => {
+            if (s.track && s.track.kind === 'audio') setHiFiParams(s);
+          });
+        }
+      });
+    }, 300);
+
+    call.on('error', err => {
+      setPill($('sStatus'), 'error', '連線錯誤');
+      showHint('sHint', 'warn', '連線出錯：' + (err && err.message ? err.message : String(err)));
+    });
+    call.on('close', cleanup);
+
+    // 使用者在瀏覽器原生 UI 點「停止分享」
+    stream.getTracks().forEach(t => t.addEventListener('ended', cleanup));
+  }
+
+  function cleanup() {
+    if (!localStream && !call) return;
+    if (call) { try { call.close(); } catch(e){} call = null; }
+    if (localStream) {
+      localStream.getTracks().forEach(t => { try { t.stop(); } catch(e){} });
+      localStream = null;
+    }
+    stopSpectrum(sBars);
+    stopBtn.classList.add('hide');
+    shareBtn.classList.remove('hide');
+    setPill($('sStatus'), 'waiting', '已停止');
+    showHint('sHint', '', '在彈窗中選擇「整個畫面」或要分享的分頁，<b>務必勾選左下角「分享系統音頻」</b>。');
+  }
+
+  shareBtn.addEventListener('click', startShare);
+  stopBtn.addEventListener('click', cleanup);
+
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') {
+      setPill($('sStatus'), 'error', '找不到接收端');
+      showHint('sHint', 'warn', '接收端不在線，請在另一台電腦先打開主頁並複製最新連結。');
+    } else if (err.type === 'network' || err.type === 'server-error') {
+      setPill($('sStatus'), 'error', '網路錯誤');
+    } else {
+      setPill($('sStatus'), 'error', '連接中斷');
+    }
+  });
+}
+</script>
+</body>
+</html>
