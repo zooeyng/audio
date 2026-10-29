@@ -314,20 +314,25 @@ h1 {
 <body>
 <div class="particles" id="particles"></div>
 <div class="container">
-  <h1>🎵 音頻串流 🎵</h1>
-  
+  <h1>🎵 音頻串流</h1>
+ 
 
   <!-- 接收端界面 -->
   <div id="receiver-panel" class="card" style="display:none;">
-    
+    <div class="role-intro">📡 你是 <b>接收端（B）</b>：把下面的連結或 QR Code 發給發送端（A），對方打開後音訊就會自動推送到這裡。</div>
     <div class="card-title">📡 接收端</div>
     <div id="receiver-status" class="status-badge status-waiting">等待發送端連接...</div>
 
     <div class="hint hifi">
-      <b>🎧 高音質直傳，保留完整立體聲與 48kHz 採樣 🎧
+      <b>🎧 高音質直傳模式：</b>保留完整立體聲與 48kHz 採樣
     </div>
 
     <div class="eq-container" id="receiver-eq"></div>
+
+    <div class="qr-box">
+      <div id="qrcode"></div>
+      <p style="margin-top:12px; color:rgba(255,255,255,0.6); font-size:0.9rem;">A 電腦掃碼 / 打開連結即可開始推流</p>
+    </div>
 
     <div class="invite-link">
       <input type="text" id="invite-url" readonly>
