@@ -1,39 +1,131 @@
-
-<html>
+<!DOCTYPE html>
+<html lang="zh-TW">
 <head>
-<meta charset="UTF-8" />
-<title>LIVE视频播放器</title>
-<link href="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/tcplayer.min.css" rel="stylesheet"/>
-<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/TXLivePlayer-1.2.3.min.js"></script>
-<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/hls.min.1.1.6.js"></script>
-<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/flv.min.1.6.3.js"></script>
-<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/libs/dash.all.min.4.5.2.js"></script>
-<script src="https://web.sdk.qcloud.com/player/tcplayer/release/v4.7.2/tcplayer.v4.7.2.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebRTC 音頻P2P傳送</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui,sans-serif;margin:0;padding:0}
+body{max-width:800px;margin:2rem auto;padding:0 1rem;background:#111;color:#eee;line-height:1.6}
+h1{text-align:center;margin-bottom:1rem;color:#4cf}
+.card{background:#222;padding:1.2rem;border-radius:12px;margin-bottom:1rem}
+textarea{width:100%;min-height:120px;background:#000;color:#cfc;border:1px solid #444;padding:0.8rem;border-radius:8px;font-family:monospace;resize:vertical;margin:0.5rem 0}
+button{padding:0.7rem 1.2rem;border:none;border-radius:8px;background:#28a;color:white;font-weight:bold;cursor:pointer;margin:0.3rem;font-size:1rem}
+button:disabled{background:#444;cursor:not-allowed}
+.info{color:#aad;margin:0.4rem 0;font-size:0.9rem}
+.status{padding:0.6rem;border-radius:8px;margin:0.6rem 0;background:#334}
+.ready{background:#242;color:#8f8}
+.wait{background:#432;color:#fd8}
+.err{background:#422;color:#f88}
+</style>
 </head>
-<body bgcolor="black" style="margin:0">
+<body>
+<h1>P2P 音頻串流（WebRTC）</h1>
+<div class="status" id="status">等待初始化</div>
 
-<input type="text" name="aa" id="link" style="height:50px; width:1000px;font-size:30px;">
+<div class="card">
+  <h3>1. 取得你的連線報文（SDP）</h3>
+  <p class="info">點擊【建立發送端】，複製產生的文字，發給對方</p>
+  <button id="btnCreate">建立發送端</button>
+  <textarea id="localSDP" readonly placeholder="你的SDP會出現在這裡"></textarea>
+  <button id="copyLocal">複製報文</button>
+</div>
 
-<button type="button" style=" height: 50px; width: 120px; font-size:40px;" onclick="go()">GO</button>
+<div class="card">
+  <h3>2. 貼上對方的報文</h3>
+  <p class="info">把對方傳給你的SDP貼進來，點擊【接收連線】</p>
+  <textarea id="remoteSDP" placeholder="貼上對方的SDP"></textarea>
+  <button id="btnConnect">接收連線</button>
+</div>
 
-<video id="myVideo" style="width:100%;height:100%" preload="auto" playsinline webkit-playsinline></video>
+<div class="card">
+  <h3>音頻輸出</h3>
+  <audio id="audioPlayer" controls autoplay>
+  <p class="info">連線成功後會自動播放對方麥克風聲音</p>
+</div>
 
 <script>
-var player = TCPlayer('myVideo', {});
-player.src("https://locallive.tdm.com.mo/ch1/ch1.live/playlist.m3u8");
+const statusEl = document.getElementById('status');
+const localSDP = document.getElementById('localSDP');
+const remoteSDP = document.getElementById('remoteSDP');
+const btnCreate = document.getElementById('btnCreate');
+const btnConnect = document.getElementById('btnConnect');
+const copyLocal = document.getElementById('copyLocal');
+const audioPlayer = document.getElementById('audioPlayer');
 
- 	player.load();
-	player.play();
+let pc;
+let localStream;
+const config = {
+  iceServers: [
+    {urls: 'stun:stun.l.google.com:19302'},
+    {urls: 'stun:global.stun.twilio.com:3478'}
+  ]
+};
 
-function go() {
-	
-var player = TCPlayer('myVideo', {});
-player.src("https://live3.tdm.com.mo/ch6/hd_ch6.live/playlist.m3u8");
- 	player.load();
-	player.play();
+function setStatus(txt, type=''){
+  statusEl.textContent = txt;
+  statusEl.className = 'status '+type;
 }
 
-</script>
+btnCreate.onclick = async ()=>{
+  try{
+    setStatus('正在請求麥克風權限...','wait');
+    localStream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    pc = new RTCPeerConnection(config);
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
 
+    pc.ontrack = (e)=>{
+      audioPlayer.srcObject = e.streams[0];
+      setStatus('✅ 音頻串流連線成功！','ready');
+    };
+    pc.onicecandidate = (e)=>{
+      if(!e.candidate) return;
+      localSDP.value = JSON.stringify({sdp:pc.localDescription, ice:e.candidate});
+    };
+    pc.onicegatheringstatechange = ()=>{
+      if(pc.iceGatheringState === 'complete'){
+        localSDP.value = JSON.stringify({sdp:pc.localDescription});
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    setStatus('已建立Offer，複製報文給對方','wait');
+  }catch(err){
+    setStatus('❌ 錯誤：'+err.message,'err');
+    console.error(err);
+  }
+};
+
+btnConnect.onclick = async ()=>{
+  try{
+    setStatus('正在處理對方報文...','wait');
+    const data = JSON.parse(remoteSDP.value.trim());
+    pc = new RTCPeerConnection(config);
+
+    pc.ontrack = (e)=>{
+      audioPlayer.srcObject = e.streams[0];
+      setStatus('✅ 音頻串流連線成功！','ready');
+    };
+    pc.onicecandidate = (e)=>{
+      if(!e.candidate) return;
+      localSDP.value = JSON.stringify({sdp:pc.localDescription, ice:e.candidate});
+    };
+
+    await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    setStatus('已產生Answer，複製給發送方完成配對','wait');
+  }catch(err){
+    setStatus('❌ 連線失敗：'+err.message,'err');
+    console.error(err);
+  }
+};
+
+copyLocal.onclick = async ()=>{
+  await navigator.clipboard.writeText(localSDP.value);
+  setStatus('已複製到剪貼簿','ready');
+};
+</script>
 </body>
 </html>
