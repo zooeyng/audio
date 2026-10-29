@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WebRTC 音頻P2P傳送</title>
+<title>WebRTC 音頻P2P傳送 - 除錯版</title>
 <style>
 *{box-sizing:border-box;font-family:system-ui,sans-serif;margin:0;padding:0}
 body{max-width:800px;margin:2rem auto;padding:0 1rem;background:#111;color:#eee;line-height:1.6}
@@ -17,11 +17,18 @@ button:disabled{background:#444;cursor:not-allowed}
 .ready{background:#242;color:#8f8}
 .wait{background:#432;color:#fd8}
 .err{background:#422;color:#f88}
+#deviceList{background:#022;padding:0.8rem;border-radius:8px;font-size:0.9rem;color:#acf;white-space:pre-wrap}
 </style>
 </head>
 <body>
 <h1>P2P 音頻串流（WebRTC）</h1>
 <div class="status" id="status">等待初始化</div>
+
+<div class="card">
+  <h3>🔍 麥克風裝置偵測</h3>
+  <button id="btnScan">重新掃描音頻裝置</button>
+  <div id="deviceList">裝置列表會顯示在這裡</div>
+</div>
 
 <div class="card">
   <h3>1. 取得你的連線報文（SDP）</h3>
@@ -52,6 +59,8 @@ const btnCreate = document.getElementById('btnCreate');
 const btnConnect = document.getElementById('btnConnect');
 const copyLocal = document.getElementById('copyLocal');
 const audioPlayer = document.getElementById('audioPlayer');
+const btnScan = document.getElementById('btnScan');
+const deviceListEl = document.getElementById('deviceList');
 
 let pc;
 let localStream;
@@ -66,6 +75,28 @@ function setStatus(txt, type=''){
   statusEl.textContent = txt;
   statusEl.className = 'status '+type;
 }
+
+async function scanDevices(){
+  try{
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devs.filter(d=>d.kind === 'audioinput');
+    let text = `找到音頻輸入（麥克風）數量：${audioInputs.length}\n`;
+    if(audioInputs.length === 0){
+      text += "⚠️ 沒有偵測到任何麥克風！這就是 Requested device not found 的原因！";
+    }else{
+      audioInputs.forEach((d,i)=>{
+        text += `[${i+1}] label: ${d.label || '未命名麥克風'}  id:${d.deviceId}\n`;
+      })
+    }
+    deviceListEl.textContent = text;
+  }catch(e){
+    deviceListEl.textContent = "掃描裝置失敗："+e.message;
+  }
+}
+
+btnScan.onclick = scanDevices;
+// 頁面載入自動掃描
+scanDevices();
 
 btnCreate.onclick = async ()=>{
   try{
@@ -94,6 +125,7 @@ btnCreate.onclick = async ()=>{
   }catch(err){
     setStatus('❌ 錯誤：'+err.message,'err');
     console.error(err);
+    alert("錯誤："+err.message+"\n\n建議：先點【重新掃描音頻裝置】，確認有麥克風");
   }
 };
 
@@ -119,6 +151,7 @@ btnConnect.onclick = async ()=>{
   }catch(err){
     setStatus('❌ 連線失敗：'+err.message,'err');
     console.error(err);
+    alert("連線錯誤："+err.message);
   }
 };
 
