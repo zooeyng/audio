@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>系統音頻串流</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  color: #fff;
+  overflow-x: hidden;
+  position: relative;
+}
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(93, 219, 255, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(180, 113, 255, 0.15) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.particles {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 60px 20px;
+  position: relative;
+  z-index: 1;
+}
+h1 {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 36px;
+  background: linear-gradient(90deg, #7c5dfa, #5ddbff, #ff7df9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+.status-waiting { background: rgba(124, 93, 250, 0.2); color: #a78bfa; }
+.status-connecting { background: rgba(251, 191, 36, 0.2); color: #fbbf24; animation: pulse 1.5s infinite; }
+.status-connected { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.status-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.eq-container {
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  padding: 20px 0;
+  margin-bottom: 28px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 16px;
+}
+.eq-bar {
+  width: 10px;
+  background: linear-gradient(to top, #7c5dfa, #5ddbff, #ff7df9);
+  border-radius: 5px 5px 0 0;
+  height: 4px;
+  transition: height 0.08s ease-out;
+  box-shadow: 0 0 10px rgba(124, 93, 250, 0.5);
+}
+.eq-bar.idle { animation: eqIdle 2s ease-in-out infinite; }
+@keyframes eqIdle {
+  0%, 100% { height: 4px; }
+  50% { height: 20px; }
+}
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #7c5dfa, #5ddbff);
+  color: #fff;
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(124, 93, 250, 0.4);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(124, 93, 250, 0.5); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.btn-stop {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  width: 100%;
+  font-size: 1.1rem;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+  margin-top: 12px;
+}
+.btn-stop:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(239, 68, 68, 0.5); }
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+.btn:active::after { width: 300px; height: 300px; }
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+.diagnostic-item {
+  background: rgba(0,0,0,0.2);
+  padding: 12px 16px;
+  border-radius: 12px;
+}
+.diagnostic-label { color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-bottom: 4px; }
+.diagnostic-value { font-weight: 600; font-size: 1rem; }
+.value-success { color: #22c55e; }
+.value-warning { color: #fbbf24; }
+.value-error { color: #ef4444; }
+@media (max-width: 640px) {
+  h1 { font-size: 1.6rem; margin-bottom: 24px; }
+  .card { padding: 20px; }
+  .diagnostic-grid { grid-template-columns: 1fr; }
+  .eq-bar { width: 6px; }
+}
+</style>
+</head>
+<body>
+<div class="particles" id="particles"></div>
+<div class="container">
+  <h1>🎵 系統音頻串流</h1>
+
+  <div class="card">
+    <div id="sender-status" class="status-badge status-waiting">準備就緒</div>
+
+    <div class="eq-container" id="sender-eq"></div>
+
+    <button class="btn btn-primary" id="start-btn">開始分享系統音頻</button>
+    <button class="btn btn-stop" id="stop-btn" style="display:none;">停止傳送</button>
+
+    <div class="diagnostic-grid">
+      <div class="diagnostic-item">
+        <div class="diagnostic-label">採樣率</div>
+        <div class="diagnostic-value" id="sender-sample">-</div>
+      </div>
+      <div class="diagnostic-item">
+        <div class="diagnostic-label">聲道數</div>
+        <div class="diagnostic-value" id="sender-channels">-</div>
+      </div>
+      <div class="diagnostic-item">
+        <div class="diagnostic-label">即時碼率</div>
+        <div class="diagnostic-value" id="sender-bitrate">-</div>
+      </div>
+      <div class="diagnostic-item">
+        <div class="diagnostic-label">往返延遲</div>
+        <div class="diagnostic-value" id="sender-rtt">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<audio id="audio-player" autoplay></audio>
+
+<script>
+// 粒子背景
+(function(){
+  const container = document.getElementById('particles');
+  for(let i=0; i<30; i++){
+    const p = document.createElement('div');
+    const size = Math.random()*4 + 2;
+    p.style.cssText = `
+      position: absolute;
+      width: ${size}px;
+      height: ${size}px;
+      background: rgba(124, 93, 250, ${Math.random()*0.3 + 0.1});
+      border-radius: 50%;
+      left: ${Math.random()*100}%;
+      top: ${Math.random()*100}%;
+      animation: float ${Math.random()*20 + 10}s linear infinite;
+    `;
+    container.appendChild(p);
+  }
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes float {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100vh) translateX(${Math.random()*100 - 50}px); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+// 初始化EQ條
+function initEQ(containerId, count=32){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  for(let i=0; i<count; i++){
+    const bar = document.createElement('div');
+    bar.className = 'eq-bar idle';
+    bar.style.animationDelay = `${i*0.05}s`;
+    container.appendChild(bar);
+  }
+  return Array.from(container.children);
+}
+const senderBars = initEQ('sender-eq');
+
+// 音頻可視化
+let audioContext, currentAnimId;
+function startVisualizer(stream, bars){
+  if(!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioContext.state === 'suspended') audioContext.resume();
+
+  const source = audioContext.createMediaStreamSource(stream);
+  const analyser = audioContext.createAnalyser();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.75;
+  source.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  bars.forEach(b => b.classList.remove('idle'));
+
+  if(currentAnimId) cancelAnimationFrame(currentAnimId);
+  let running = true;
+
+  function animate(){
+    if(!running) return;
+    analyser.getByteFrequencyData(data);
+    const step = Math.floor(data.length / bars.length);
+    for(let i=0; i<bars.length; i++){
+      const value = data[i*step];
+      const height = Math.max(4, (value / 255) * 100);
+      bars[i].style.height = `${height}px`;
+    }
+    currentAnimId = requestAnimationFrame(animate);
+  }
+  animate();
+  return () => { running = false; };
+}
+
+function stopVisualizer(bars){
+  if(currentAnimId){ cancelAnimationFrame(currentAnimId); currentAnimId = null; }
+  bars.forEach(b => { b.classList.add('idle'); b.style.height = '4px'; });
+}
+
+// ICE伺服器列表
+function getICEServers(){
+  return [
+    { urls: 'stun:stun.qcloud.com' },
+    { urls: 'stun:stun.aliyun.com:3478' },
+    { urls: 'stun:stun.netease.im:3478' },
+    { urls: 'stun:stun.miwifi.com' },
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:eu-0.turn.peerjs.com:3478', username: 'peerjs', credential: 'peerjsp' },
+    { urls: 'turn:us-0.turn.peerjs.com:3478', username: 'peerjs', credential: 'peerjsp' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+  ];
+}
+
+const urlParams = new URLSearchParams(window.location.search);
+const remoteId = urlParams.get('id');
+
+let peer, localStream, currentCall, stopVisFn;
+let lastBytes = 0, lastTime = Date.now();
+let bitrateTimer = null;
+
+// ========== 高音質 SDP 改寫（核心） ==========
+function enhanceSDP(sdp){
+  const HI_FI = 'stereo=1;sprop-stereo=1;maxaveragebitrate=510000;maxplaybackrate=48000;sprop-maxcapturerate=48000;cbr=1;usedtx=0;useinbandfec=0;minptime=10;ptime=20;complexity=10;packet-loss-percent=0';
+
+  const lines = sdp.split('\r\n');
+  const opusPayloads = new Set();
+  for(let i=0; i<lines.length; i++){
+    if(lines[i].startsWith('m=audio ')){
+      const parts = lines[i].split(' ');
+      for(let j=3; j<parts.length; j++){
+        const pt = parts[j];
+        for(let k=0; k<lines.length; k++){
+          if(lines[k].startsWith(`a=rtpmap:${pt} opus/`)){
+            opusPayloads.add(pt);
+          }
+        }
+      }
+    }
+  }
+
+  for(let i=0; i<lines.length; i++){
+    for(const pt of opusPayloads){
+      if(lines[i].startsWith(`a=fmtp:${pt} `)){
+        let params = lines[i].substring(`a=fmtp:${pt} `.length);
+        params = params.replace(/;?\s*(stereo|sprop-stereo|maxaveragebitrate|maxplaybackrate|sprop-maxcapturerate|cbr|usedtx|useinbandfec|minptime|ptime|complexity|packet-loss-percent)=[^;]*/g, '');
+        lines[i] = `a=fmtp:${pt} ${params}${params ? ';' : ''}${HI_FI}`;
+      }
+    }
+  }
+
+  for(let i=0; i<lines.length; i++){
+    if(lines[i].startsWith('m=audio ')){
+      const parts = lines[i].split(' ');
+      const header = parts.slice(0, 3);
+      const payloads = parts.slice(3);
+      const ordered = [];
+      const rest = [];
+      for(const p of payloads){
+        if(opusPayloads.has(p)) ordered.push(p);
+        else rest.push(p);
+      }
+      lines[i] = [...header, ...ordered, ...rest].join(' ');
+    }
+  }
+
+  let hasBandwidth = false;
+  for(let i=0; i<lines.length; i++){
+    if(lines[i].startsWith('b=AS:') || lines[i].startsWith('b=TIAS:')){
+      lines[i] = 'b=AS:600';
+      hasBandwidth = true;
+    }
+  }
+  if(!hasBandwidth){
+    for(let i=0; i<lines.length; i++){
+      if(lines[i].startsWith('c=IN IP4')){
+        lines.splice(i+1, 0, 'b=AS:600');
+        break;
+      }
+    }
+  }
+
+  return lines.join('\r\n');
+}
+
+async function setHiFiEncoding(peerConnection){
+  try {
+    const senders = peerConnection.getSenders();
+    for(const sender of senders){
+      if(!sender.track || sender.track.kind !== 'audio') continue;
+      const params = sender.getParameters();
+      if(!params.encodings || params.encodings.length === 0){
+        params.encodings = [{}];
+      }
+      const enc = params.encodings[0];
+      enc.maxBitrate = 510000;
+      enc.networkPriority = 'high';
+      enc.priority = 'high';
+      if('stereo' in enc) enc.stereo = true;
+      await sender.setParameters(params);
+    }
+  } catch(e){
+    console.warn('setHiFiEncoding failed:', e);
+  }
+}
+
+function createPeer(peerId){
+  return new Promise((resolve, reject) => {
+    const servers = [
+      { host: '0.peerjs.com', port: 443, path: '/', secure: true },
+      { host: 'peerjs-server.herokuapp.com', port: 443, path: '/', secure: true }
+    ];
+    function tryConnect(idx){
+      if(idx >= servers.length) return reject(new Error('所有信令伺服器都無法連接'));
+      const p = new Peer(peerId, {
+        ...servers[idx],
+        config: { iceServers: getICEServers(), bundlePolicy: 'max-bundle' },
+        debug: 2
+      });
+      const timeout = setTimeout(() => {
+        p.destroy();
+        tryConnect(idx+1);
+      }, 6000);
+      p.on('open', () => { clearTimeout(timeout); resolve(p); });
+      p.on('error', (err) => {
+        clearTimeout(timeout);
+        if(err.type === 'peer-unavailable' || err.type === 'network' || err.type === 'server-error' || err.type === 'disconnected'){
+          p.destroy();
+          tryConnect(idx+1);
+        } else {
+          reject(err);
+        }
+      });
+    }
+    tryConnect(0);
+  });
+}
+
+function cleanupSenderCall(){
+  if(bitrateTimer){ clearInterval(bitrateTimer); bitrateTimer = null; }
+  if(stopVisFn){ stopVisFn(); stopVisFn = null; }
+  if(currentCall){
+    try { currentCall.close(); } catch(e){}
+    currentCall = null;
+  }
+  if(localStream){
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+}
+
+// 碼率/RTT統計
+function startStatsMonitor(pc){
+  if(bitrateTimer) clearInterval(bitrateTimer);
+  lastBytes = 0; lastTime = Date.now();
+
+  bitrateTimer = setInterval(() => {
+    if(!pc) return;
+    pc.getStats(null).then(stats => {
+      let bitrate = 0, rtt = '-';
+      let selectedPair = null;
+
+      stats.forEach(report => {
+        if(report.type === 'candidate-pair' && report.nominated && report.state === 'succeeded'){
+          selectedPair = report;
+        }
+      });
+
+      if(selectedPair){
+        const now = Date.now();
+        const bytes = selectedPair.bytesSent || 0;
+        if(lastTime && lastBytes !== undefined){
+          bitrate = Math.round(((bytes - lastBytes) * 8) / (now - lastTime) / 1000);
+        }
+        lastBytes = bytes;
+        lastTime = now;
+        if(selectedPair.currentRoundTripTime !== undefined){
+          rtt = Math.round(selectedPair.currentRoundTripTime * 1000) + ' ms';
+        }
+        const replies = selectedPair.responsesReceived;
+        if(replies && selectedPair.totalRoundTripTime !== undefined){
+          rtt = Math.round((selectedPair.totalRoundTripTime / replies) * 1000) + ' ms';
+        }
+      }
+
+      const brEl = document.getElementById('sender-bitrate');
+      if(brEl){
+        brEl.textContent = bitrate + ' kbps';
+        brEl.className = 'diagnostic-value ' + (bitrate >= 300 ? 'value-success' : bitrate >= 100 ? 'value-warning' : 'value-error');
+      }
+      const rttEl = document.getElementById('sender-rtt');
+      if(rttEl) rttEl.textContent = rtt;
+    }).catch(()=>{});
+  }, 1000);
+}
+
+// 初始化發送端
+async function initSender(){
+  const peerId = 'send-' + Math.random().toString(36).substr(2, 8);
+  try {
+    peer = await createPeer(peerId);
+    document.getElementById('sender-status').className = 'status-badge status-waiting';
+    document.getElementById('sender-status').textContent = '準備就緒';
+  } catch(e){
+    document.getElementById('sender-status').className = 'status-badge status-error';
+    document.getElementById('sender-status').textContent = '信令伺服器連接失敗，請刷新重試';
+    return;
+  }
+
+  const startBtn = document.getElementById('start-btn');
+  const stopBtn = document.getElementById('stop-btn');
+
+  stopBtn.onclick = () => {
+    cleanupSenderCall();
+    stopVisualizer(senderBars);
+    document.getElementById('sender-status').className = 'status-badge status-waiting';
+    document.getElementById('sender-status').textContent = '已停止';
+    startBtn.style.display = 'block';
+    startBtn.disabled = false;
+    startBtn.textContent = '重新分享系統音頻';
+    stopBtn.style.display = 'none';
+    ['sender-sample','sender-channels','sender-bitrate','sender-rtt'].forEach(id => {
+      document.getElementById(id).textContent = '-';
+      document.getElementById(id).className = 'diagnostic-value';
+    });
+  };
+
+  startBtn.onclick = async () => {
+    try {
+      startBtn.disabled = true;
+      startBtn.textContent = '正在打開分享選擇視窗...';
+      document.getElementById('sender-status').className = 'status-badge status-connecting';
+      document.getElementById('sender-status').textContent = '等待你選擇要分享的畫面...';
+
+      localStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+          sampleRate: 48000,
+          channelCount: 2
+        }
+      });
+
+      localStream.getVideoTracks().forEach(t => t.stop());
+
+      const audioTrack = localStream.getAudioTracks()[0];
+      if(audioTrack){
+        const settings = audioTrack.getSettings();
+        document.getElementById('sender-sample').textContent = (settings.sampleRate || 48000) + ' Hz';
+        document.getElementById('sender-channels').textContent = (settings.channelCount || 2) + ' 聲道';
+      }
+
+      document.getElementById('sender-status').textContent = '正在連接接收端...';
+
+      const call = peer.call(remoteId, localStream, {
+        sdpTransform: enhanceSDP
+      });
+      currentCall = call;
+
+      const pc = call.peerConnection;
+      const origSetLD = pc.setLocalDescription.bind(pc);
+      pc.setLocalDescription = async function(desc){
+        if(desc && desc.sdp) desc.sdp = enhanceSDP(desc.sdp);
+        return origSetLD(desc);
+      };
+      const origSetRD = pc.setRemoteDescription.bind(pc);
+      pc.setRemoteDescription = async function(desc){
+        if(desc && desc.sdp) desc.sdp = enhanceSDP(desc.sdp);
+        return origSetRD(desc);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        if(state === 'checking'){
+          document.getElementById('sender-status').textContent = '正在建立連接...';
+        } else if(state === 'connected' || state === 'completed'){
+          document.getElementById('sender-status').className = 'status-badge status-connected';
+          document.getElementById('sender-status').textContent = '✅ 傳輸中';
+          setHiFiEncoding(pc);
+          startStatsMonitor(pc);
+          stopVisFn = startVisualizer(localStream, senderBars);
+        } else if(state === 'failed'){
+          document.getElementById('sender-status').className = 'status-badge status-error';
+          document.getElementById('sender-status').textContent = '連接失敗，請重試';
+          if(pc.restartIce) pc.restartIce();
+        } else if(state === 'disconnected' || state === 'closed'){
+          document.getElementById('sender-status').className = 'status-badge status-error';
+          document.getElementById('sender-status').textContent = '連接已斷開';
+          cleanupSenderCall();
+          stopVisualizer(senderBars);
+          startBtn.style.display = 'block';
+          startBtn.disabled = false;
+          stopBtn.style.display = 'none';
+        }
+      };
+
+      call.on('error', (err) => {
+        document.getElementById('sender-status').className = 'status-badge status-error';
+        document.getElementById('sender-status').textContent = '連接錯誤: ' + err.message;
+        cleanupSenderCall();
+      });
+
+      call.on('close', () => {
+        document.getElementById('sender-status').className = 'status-badge status-error';
+        document.getElementById('sender-status').textContent = '連接已關閉';
+        cleanupSenderCall();
+        stopVisualizer(senderBars);
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        stopBtn.style.display = 'none';
+      });
+
+      if(audioTrack){
+        audioTrack.onended = () => {
+          cleanupSenderCall();
+          stopVisualizer(senderBars);
+          document.getElementById('sender-status').className = 'status-badge status-waiting';
+          document.getElementById('sender-status').textContent = '已停止分享';
+          startBtn.style.display = 'block';
+          startBtn.disabled = false;
+          startBtn.textContent = '重新分享系統音頻';
+          stopBtn.style.display = 'none';
+        };
+      }
+
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+
+    } catch(err){
+      console.error(err);
+      document.getElementById('sender-status').className = 'status-badge status-error';
+      document.getElementById('sender-status').textContent = '無法取得系統音頻: ' + err.message;
+      startBtn.disabled = false;
+      startBtn.textContent = '開始分享系統音頻';
+    }
+  };
+}
+
+// 啟動：無 id 參數時直接當發送端
+initSender();
+</script>
+</body>
+</html>
