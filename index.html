@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>系統音頻串流｜高音質直傳</title>
+<title>音頻串流</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -122,18 +121,6 @@ h1 {
   0%, 100% { height: 4px; }
   50% { height: 20px; }
 }
-.qr-box {
-  text-align: center;
-  margin-bottom: 20px;
-}
-#qrcode {
-  display: inline-block;
-  padding: 16px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-#qrcode img, #qrcode canvas { border-radius: 8px; }
 .invite-link {
   display: flex;
   gap: 10px;
@@ -253,35 +240,6 @@ h1 {
   background: rgba(34, 197, 94, 0.1);
   border-left-color: #22c55e;
 }
-.advanced-panel { margin-top: 20px; }
-.advanced-toggle {
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.6);
-  font-size: 0.9rem;
-  cursor: pointer;
-  text-decoration: underline;
-  font-family: inherit;
-}
-.advanced-content {
-  display: none;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255,255,255,0.1);
-}
-.advanced-content.show { display: block; }
-.custom-turn-input {
-  width: 100%;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.2);
-  color: #fff;
-  font-size: 0.9rem;
-  outline: none;
-  margin-bottom: 12px;
-  font-family: monospace;
-}
 .role-intro {
   text-align: center;
   color: rgba(255,255,255,0.7);
@@ -310,32 +268,30 @@ h1 {
   .invite-link { flex-direction: column; }
 }
 </style>
-</head>
+<style>
+    @keyframes float {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { transform: translateY(-100vh) translateX(-42.894463659936974px); opacity: 0; }
+    }
+  </style></head>
 <body>
 <div class="particles" id="particles"></div>
 <div class="container">
-  <h1>🎵 系統音頻串流</h1>
-  <p class="subtitle">把 A 電腦正在播放的音樂即時傳到 B 電腦 · Opus 510kbps 48kHz 真立體聲 · 關閉所有音訊處理</p>
+  <h1>音頻串流</h1>
+  
 
   <!-- 接收端界面 -->
-  <div id="receiver-panel" class="card" style="display:none;">
-    <div class="role-intro">📡 你是 <b>接收端（B）</b>：把下面的連結或 QR Code 發給發送端（A），對方打開後音訊就會自動推送到這裡。</div>
+  <div id="receiver-panel" class="card" style="display: block;">
+    
     <div class="card-title">📡 接收端</div>
     <div id="receiver-status" class="status-badge status-waiting">等待發送端連接...</div>
 
-    <div class="hint hifi">
-      <b>🎧 高音質直傳模式：</b>已關閉降噪、回音消除、自動增益與 DTX 語音偵測，Opus 510kbps CBR 固定碼率，保留完整立體聲與 48kHz 採樣。
-    </div>
-
     <div class="eq-container" id="receiver-eq"></div>
 
-    <div class="qr-box">
-      <div id="qrcode"></div>
-      <p style="margin-top:12px; color:rgba(255,255,255,0.6); font-size:0.9rem;">A 電腦掃碼 / 打開連結即可開始推流</p>
-    </div>
-
     <div class="invite-link">
-      <input type="text" id="invite-url" readonly>
+      <input type="text" id="invite-url" readonly="">
       <button class="btn btn-secondary" id="copy-btn">複製連結</button>
     </div>
 
@@ -343,7 +299,7 @@ h1 {
       <div class="diagnostic-grid">
         <div class="diagnostic-item">
           <div class="diagnostic-label">連接狀態</div>
-          <div class="diagnostic-value" id="diag-conn">未連接</div>
+          <div class="diagnostic-value value-warning" id="diag-conn">等待推流</div>
         </div>
         <div class="diagnostic-item">
           <div class="diagnostic-label">連接方式</div>
@@ -371,23 +327,9 @@ h1 {
 
   <!-- 發送端界面 -->
   <div id="sender-panel" class="card" style="display:none;">
-    <div class="role-intro">📤 你是 <b>發送端（A）</b>：點擊下方按鈕，彈窗裡選擇要分享的「整個畫面」或「分頁」，<b>務必勾選「分享系統音頻」</b>。</div>
-    <div class="card-title">📤 發送端（系統音頻 · 高音質）</div>
+    
+    <div class="card-title">📤 發送端</div>
     <div id="sender-status" class="status-badge status-waiting">準備就緒</div>
-
-    <div class="hint">
-      <b>⚠️ 使用提示：</b>
-      <ul>
-        <li>彈窗中選擇「整個畫面」或某個「分頁」，不要只選視窗（部份瀏覽器視窗分享無法擷取音頻）。</li>
-        <li>一定要勾選左下角的 <b>「分享系統音頻 / Share system audio」</b>，否則對方聽不到聲音。</li>
-        <li>影片軌會自動停用，只傳音頻，不會分享畫面。</li>
-        <li>推薦用 Chrome / Edge，兩端在同區域網路時碼率最高、延遲最低。</li>
-      </ul>
-    </div>
-
-    <div class="hint hifi">
-      <b>🎧 高音質設定：</b>Opus 510kbps CBR · 48kHz · 真立體聲 · complexity=10 · 關閉降噪/AGC/回音消除/DTX/FEC。若網路不穩出現斷續，可自行修改源碼 maxaveragebitrate 為 320000。
-    </div>
 
     <div class="eq-container" id="sender-eq"></div>
 
@@ -423,20 +365,9 @@ h1 {
       </div>
     </div>
   </div>
-
-  <!-- 高級設置 -->
-  <div class="card">
-    <div class="card-title">⚙️ 高級設置</div>
-    <button class="advanced-toggle" id="advanced-toggle">展開自訂TURN中繼設置</button>
-    <div class="advanced-content" id="advanced-content">
-      <p style="color:rgba(255,255,255,0.7); margin-bottom:12px; font-size:0.9rem;">如果 P2P 打洞失敗（兩端都在嚴格 NAT 後方），可填入自己的 TURN 伺服器地址，格式：turn:使用者:密碼@位址:端口<br><b>注意：走 TURN 中繼時碼率會受限，建議同區網/有公網 IP 使用高音質。</b></p>
-      <input type="text" class="custom-turn-input" id="custom-turn" placeholder="例如：turn:username:password@turn.example.com:3478">
-      <button class="btn btn-secondary" id="save-turn" style="width:100%;">保存並重新連接</button>
-    </div>
-  </div>
 </div>
 
-<audio id="audio-player" autoplay></audio>
+<audio id="audio-player" autoplay=""></audio>
 
 <script>
 // 粒子背景
@@ -526,7 +457,6 @@ function stopVisualizer(bars){
 
 // ICE伺服器列表（國內優化）
 function getICEServers(){
-  const customTurn = localStorage.getItem('customTurn');
   const servers = [
     { urls: 'stun:stun.qcloud.com' },
     { urls: 'stun:stun.aliyun.com:3478' },
@@ -540,16 +470,6 @@ function getICEServers(){
     { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
     { urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
   ];
-  if(customTurn){
-    try {
-      const url = new URL(customTurn);
-      servers.push({
-        urls: customTurn.split('@')[0] || customTurn,
-        username: url.username || '',
-        credential: url.password || ''
-      });
-    } catch(e){}
-  }
   return servers;
 }
 
@@ -727,10 +647,6 @@ function startStatsMonitor(pc, isSendSide){
         if(report.type === 'codec' && report.mimeType && report.mimeType.startsWith('audio/')){
           codec = `${report.mimeType.replace('audio/','')} ${report.clockRate/1000}kHz${report.channels===2?' 立體聲':''}`;
         }
-        // RTT
-        if(report.type === 'remote-candidate' && selectedPair && report.id === selectedPair.remoteCandidateId){
-          // 從 candidate-pair 拿 currentRoundTripTime
-        }
       });
 
       if(selectedPair){
@@ -755,11 +671,10 @@ function startStatsMonitor(pc, isSendSide){
       stats.forEach(report => {
         if(isSendSide && report.type === 'outbound-rtp' && report.kind === 'audio'){
           const sent = report.packetsSent || 0;
-          const lost = report.packetsLost || 0; // Chrome 不總是有
+          const lost = report.packetsLost || 0;
           if(lastPackets >= 0){
             const dSent = sent - lastPackets;
             if(dSent > 0){
-              // 有的實作在 receiver-report 裡，這裡保守處理
             }
           }
           lastPackets = sent;
@@ -774,9 +689,6 @@ function startStatsMonitor(pc, isSendSide){
           if(recv + lost > 0){
             lossPct = ((lost/(recv+lost))*100).toFixed(2) + '%';
           } else lossPct = '0%';
-          if(report.jitter !== undefined){
-            // 可選：抖動 jitter
-          }
         }
       });
 
@@ -810,7 +722,6 @@ async function initReceiver(){
   }
   const inviteUrl = `${window.location.origin}${window.location.pathname}?id=${peer.id}`;
   document.getElementById('invite-url').value = inviteUrl;
-  new QRCode(document.getElementById('qrcode'), { text: inviteUrl, width: 200, height: 200 });
 
   document.getElementById('copy-btn').onclick = () => {
     navigator.clipboard.writeText(inviteUrl).then(() => {
@@ -831,15 +742,10 @@ async function initReceiver(){
     document.getElementById('receiver-status').textContent = '正在建立媒體通道...';
     document.getElementById('diag-conn').textContent = '連接中...';
 
-    // 接收端也要把 answer 的 SDP 改成高音質（雙向確保）
-    call.answer(undefined); // 先不傳 stream，但要 sdpTransform
-    call.peerConnection.addEventListener('signalingstatechange', async () => {
-      // 等 signaling stable 後再鎖 sender（receiver 沒有 audio sender，跳過）
-    });
+    call.answer(undefined);
 
     call.on('stream', (remoteStream) => {
       const audio = document.getElementById('audio-player');
-      // 禁用瀏覽器對 <audio> 的默認處理
       audio.srcObject = remoteStream;
       audio.play().catch(e => {
         document.body.addEventListener('click', () => audio.play(), { once: true });
@@ -854,8 +760,6 @@ async function initReceiver(){
       startStatsMonitor(call.peerConnection, false);
     });
 
-    // sdpTransform 在 peerjs 1.x 需在 options 傳；接收端 answer 的 sdpTransform 由 peerjs 自己套用到 offer 回應
-    // 為了雙保險，直接在 peerConnection 的 setLocalDescription 前改寫 answer
     const pc = call.peerConnection;
     const origSetLD = pc.setLocalDescription.bind(pc);
     pc.setLocalDescription = async function(desc){
@@ -945,7 +849,6 @@ async function initSender(){
       document.getElementById('sender-status').className = 'status-badge status-connecting';
       document.getElementById('sender-status').textContent = '等待你選擇要分享的畫面...';
 
-      // 抓取系統音頻：強制關閉所有音訊處理
       localStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: {
@@ -953,66 +856,30 @@ async function initSender(){
           noiseSuppression: false,
           autoGainControl: false,
           sampleRate: 48000,
-          channelCount: 2,
-          latency: 0
+          channelCount: 2
         }
       });
 
-      // 停用影片軌
-      localStream.getVideoTracks().forEach(track => { track.enabled = false; });
+      // 關閉視頻軌道，只保留音頻
+      localStream.getVideoTracks().forEach(t => t.stop());
 
-      const audioTracks = localStream.getAudioTracks();
-      if(audioTracks.length === 0){
-        throw new Error('未取得音頻軌，請確認勾選了「分享系統音頻」');
+      // 獲取音頻軌道信息
+      const audioTrack = localStream.getAudioTracks()[0];
+      if(audioTrack){
+        const settings = audioTrack.getSettings();
+        document.getElementById('sender-sample').textContent = (settings.sampleRate || 48000) + ' Hz';
+        document.getElementById('sender-channels').textContent = (settings.channelCount || 2) + ' 聲道';
+        document.getElementById('sender-source').textContent = '系統音頻';
       }
 
-      // 對音頻 track 做 constraints 強化
-      for(const t of audioTracks){
-        try {
-          await t.applyConstraints({
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-            channelCount: 2,
-            sampleRate: 48000,
-            latency: 0
-          });
-        } catch(cErr){ /* 部份來源不支援改，可忽略 */ }
-      }
-
-      const track = audioTracks[0];
-      const settings = track.getSettings();
-      document.getElementById('sender-sample').textContent = (settings.sampleRate || 48000) + ' Hz';
-      document.getElementById('sender-channels').textContent = (settings.channelCount || 2) + ' 聲道';
-
-      const label = track.label || '';
-      let sourceType = '系統音訊';
-      if(label.toLowerCase().includes('tab') || label.includes('分頁')) sourceType = '分頁音訊';
-      else if(label.toLowerCase().includes('screen') || label.includes('螢幕') || label.includes('屏幕')) sourceType = '整個螢幕';
-      else if(label.toLowerCase().includes('window') || label.includes('視窗') || label.includes('窗口')) sourceType = '單一視窗（可能無音訊）';
-      const srcEl = document.getElementById('sender-source');
-      srcEl.textContent = sourceType;
-      srcEl.className = 'diagnostic-value ' + (sourceType.includes('單一視窗') ? 'value-warning' : 'value-success');
-
-      stopVisFn = startVisualizer(localStream, senderBars);
-
-      document.getElementById('sender-status').className = 'status-badge status-connecting';
       document.getElementById('sender-status').textContent = '正在連接接收端...';
-      startBtn.style.display = 'none';
-      stopBtn.style.display = 'block';
 
-      localStream.getVideoTracks().concat(audioTracks).forEach(t => {
-        t.onended = () => { if(stopBtn.style.display !== 'none') stopBtn.click(); };
+      const call = peer.call(remoteId, localStream, {
+        sdpTransform: enhanceSDP
       });
-
-      const sendStream = new MediaStream(audioTracks);
-      const call = peer.call(remoteId, sendStream, { sdpTransform: enhanceSDP });
       currentCall = call;
 
-      // 在 signaling stable 後立刻設 maxBitrate（雙保險）
       const pc = call.peerConnection;
-
-      // 猴子補丁：雙向改寫 SDP（offer/answer 都過一次 enhanceSDP）
       const origSetLD = pc.setLocalDescription.bind(pc);
       pc.setLocalDescription = async function(desc){
         if(desc && desc.sdp) desc.sdp = enhanceSDP(desc.sdp);
@@ -1024,97 +891,80 @@ async function initSender(){
         return origSetRD(desc);
       };
 
-      pc.addEventListener('signalingstatechange', async () => {
-        if(pc.signalingState === 'stable'){
-          await setHiFiEncoding(pc);
-        }
-      });
-      // ICE connected 時再設一次（某些瀏覽器在 ICE 重啟後會重置）
       pc.oniceconnectionstatechange = () => {
         const state = pc.iceConnectionState;
         if(state === 'checking'){
-          document.getElementById('sender-status').textContent = '正在建立媒體通道（打洞中）...';
+          document.getElementById('sender-status').textContent = '正在打洞建立 P2P 連接...';
         } else if(state === 'connected' || state === 'completed'){
-          setHiFiEncoding(pc);
           document.getElementById('sender-status').className = 'status-badge status-connected';
           document.getElementById('sender-status').textContent = '✅ 高音質音頻傳輸中';
+          setHiFiEncoding(pc);
           startStatsMonitor(pc, true);
+          stopVisFn = startVisualizer(localStream, senderBars);
         } else if(state === 'failed'){
-          document.getElementById('sender-status').textContent = '打洞失敗，重試中...';
+          document.getElementById('sender-status').className = 'status-badge status-error';
+          document.getElementById('sender-status').textContent = '連接失敗，請重試';
           if(pc.restartIce) pc.restartIce();
         } else if(state === 'disconnected' || state === 'closed'){
           document.getElementById('sender-status').className = 'status-badge status-error';
-          document.getElementById('sender-status').textContent = '連接中斷';
+          document.getElementById('sender-status').textContent = '連接已斷開';
+          cleanupSenderCall();
+          stopVisualizer(senderBars);
+          startBtn.style.display = 'block';
+          startBtn.disabled = false;
+          stopBtn.style.display = 'none';
         }
       };
 
       call.on('error', (err) => {
         document.getElementById('sender-status').className = 'status-badge status-error';
-        document.getElementById('sender-status').textContent = '連接失敗: ' + err.message;
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
-        startBtn.textContent = '重新連接';
-        stopBtn.style.display = 'none';
-      });
-      call.on('close', () => {
-        if(!localStream) return;
-        document.getElementById('sender-status').className = 'status-badge status-error';
-        document.getElementById('sender-status').textContent = '連接已斷開';
-        stopVisualizer(senderBars);
-        if(stopVisFn){ stopVisFn(); stopVisFn = null; }
-        startBtn.style.display = 'block';
-        startBtn.disabled = false;
-        startBtn.textContent = '重新連接';
-        stopBtn.style.display = 'none';
+        document.getElementById('sender-status').textContent = '連接錯誤: ' + err.message;
         cleanupSenderCall();
       });
 
-    } catch(e){
-      document.getElementById('sender-status').className = 'status-badge status-error';
-      let msg = e.message || String(e);
-      if(e && e.name === 'NotAllowedError') msg = '已取消或權限被拒絕';
-      if(e && e.name === 'NotFoundError') msg = '找不到可用的音訊來源';
-      document.getElementById('sender-status').textContent = '錯誤：' + msg;
-      startBtn.disabled = false;
-      startBtn.textContent = '重新嘗試';
-      startBtn.style.display = 'block';
-      stopBtn.style.display = 'none';
-      if(localStream){
-        localStream.getTracks().forEach(t => t.stop());
-        localStream = null;
+      call.on('close', () => {
+        document.getElementById('sender-status').className = 'status-badge status-error';
+        document.getElementById('sender-status').textContent = '連接已關閉';
+        cleanupSenderCall();
+        stopVisualizer(senderBars);
+        startBtn.style.display = 'block';
+        startBtn.disabled = false;
+        stopBtn.style.display = 'none';
+      });
+
+      // 監聽用戶停止分享
+      if(audioTrack){
+        audioTrack.onended = () => {
+          cleanupSenderCall();
+          stopVisualizer(senderBars);
+          document.getElementById('sender-status').className = 'status-badge status-waiting';
+          document.getElementById('sender-status').textContent = '已停止分享';
+          startBtn.style.display = 'block';
+          startBtn.disabled = false;
+          startBtn.textContent = '重新分享系統音頻（高音質）';
+          stopBtn.style.display = 'none';
+        };
       }
+
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'block';
+
+    } catch(err){
+      console.error(err);
+      document.getElementById('sender-status').className = 'status-badge status-error';
+      document.getElementById('sender-status').textContent = '無法取得系統音頻: ' + err.message;
+      startBtn.disabled = false;
+      startBtn.textContent = '開始分享系統音頻（高音質）';
     }
   };
 }
 
-// 高級設置面板
-document.getElementById('advanced-toggle').onclick = () => {
-  const content = document.getElementById('advanced-content');
-  content.classList.toggle('show');
-  document.getElementById('advanced-toggle').textContent =
-    content.classList.contains('show') ? '收起' : '展開自訂TURN中繼設置';
-};
-document.getElementById('save-turn').onclick = () => {
-  const val = document.getElementById('custom-turn').value.trim();
-  if(val) localStorage.setItem('customTurn', val);
-  else localStorage.removeItem('customTurn');
-  alert('設置已保存，頁面將刷新重連');
-  location.reload();
-};
-(function(){
-  const saved = localStorage.getItem('customTurn');
-  if(saved) document.getElementById('custom-turn').value = saved;
-})();
-
 // 啟動
-if(isSender) initSender();
-else initReceiver();
-
-window.addEventListener('beforeunload', () => {
-  cleanupSenderCall();
-  if(peer) { try { peer.destroy(); } catch(e){} }
-  if(bitrateTimer){ clearInterval(bitrateTimer); bitrateTimer = null; }
-});
+if(isSender){
+  initSender();
+} else {
+  initReceiver();
+}
 </script>
 </body>
 </html>
