@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>系統音頻串流｜高音質直傳</title>
+<title>音頻串流</title>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -279,18 +279,14 @@ h1 {
 <body>
 <div class="particles" id="particles"></div>
 <div class="container">
-  <h1>🎵 系統音頻串流</h1>
-  <p class="subtitle">把 A 電腦正在播放的音樂即時傳到 B 電腦 · Opus 510kbps 48kHz 真立體聲 · 關閉所有音訊處理</p>
+  <h1>🎵 音頻串流</h1>
+  
 
   <!-- 接收端界面 -->
   <div id="receiver-panel" class="card" style="display: block;">
     <div class="role-intro">📡 你是 <b>接收端（B）</b>：把下面的連結發給發送端（A），對方打開後音訊就會自動推送到這裡。</div>
     <div class="card-title">📡 接收端</div>
     <div id="receiver-status" class="status-badge status-waiting">等待發送端連接...</div>
-
-    <div class="hint hifi">
-      <b>🎧 高音質直傳模式：</b>已關閉降噪、回音消除、自動增益與 DTX 語音偵測，Opus 510kbps CBR 固定碼率，保留完整立體聲與 48kHz 採樣。
-    </div>
 
     <div class="eq-container" id="receiver-eq"></div>
 
@@ -334,20 +330,6 @@ h1 {
     <div class="role-intro">📤 你是 <b>發送端（A）</b>：點擊下方按鈕，彈窗裡選擇要分享的「整個畫面」或「分頁」，<b>務必勾選「分享系統音頻」</b>。</div>
     <div class="card-title">📤 發送端（系統音頻 · 高音質）</div>
     <div id="sender-status" class="status-badge status-waiting">準備就緒</div>
-
-    <div class="hint">
-      <b>⚠️ 使用提示：</b>
-      <ul>
-        <li>彈窗中選擇「整個畫面」或某個「分頁」，不要只選視窗（部份瀏覽器視窗分享無法擷取音頻）。</li>
-        <li>一定要勾選左下角的 <b>「分享系統音頻 / Share system audio」</b>，否則對方聽不到聲音。</li>
-        <li>影片軌會自動停用，只傳音頻，不會分享畫面。</li>
-        <li>推薦用 Chrome / Edge，兩端在同區域網路時碼率最高、延遲最低。</li>
-      </ul>
-    </div>
-
-    <div class="hint hifi">
-      <b>🎧 高音質設定：</b>Opus 510kbps CBR · 48kHz · 真立體聲 · complexity=10 · 關閉降噪/AGC/回音消除/DTX/FEC。若網路不穩出現斷續，可自行修改源碼 maxaveragebitrate 為 320000。
-    </div>
 
     <div class="eq-container" id="sender-eq"></div>
 
